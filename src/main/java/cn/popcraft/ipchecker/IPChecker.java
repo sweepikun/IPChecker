@@ -36,11 +36,11 @@ public class IPChecker extends JavaPlugin {
         
         yamlStorage = new YamlStorage(this);
         yamlStorage.load();
-        
-        banService = new BanService(this, yamlStorage);
-        
+
         ipDatabaseService = new IPDatabaseService(this, dataFolder);
         ipDatabaseService.load();
+
+        banService = new BanService(this, ipDatabaseService);
         
         ipCheckerService = new IPCheckerService(this, ipDatabaseService, banService);
         
