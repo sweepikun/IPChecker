@@ -1,0 +1,191 @@
+package cn.popcraft.ipchecker.Services;
+
+import cn.popcraft.ipchecker.IPChecker;
+import org.bukkit.Bukkit;
+import org.bukkit.entity.Player;
+
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.regex.Pattern;
+
+public class BanService {
+
+    private static final Pattern CIDR_PATTERN = Pattern.compile("^\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}/\\d{1,2}$");
+    private static final Pattern IP_PATTERN = Pattern.compile("^\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}$");
+
+    private final IPChecker plugin;
+    private final IPDatabaseService ipDatabaseService;
+
+    public BanService(IPChecker plugin, IPDatabaseService ipDatabaseService) {
+        this.plugin = plugin;
+        this.ipDatabaseService = ipDatabaseService;
+    }
+
+    public void checkAndBan(Player player, String ip, boolean isDatacenter, boolean isVpn) {
+        if (plugin.getYamlStorage().isWhitelisted(ip)) {
+            return;
+        }
+
+        String reason = "";
+        if (isDatacenter) {
+            reason = "Datacenter IP";
+        } else if (isVpn) {
+            reason = "VPN IP";
+        }
+
+        if (!reason.isEmpty()) {
+            plugin.getYamlStorage().addBan(ip, reason);
+            
+            String kickMessage = plugin.getConfigManager().getKickMessage();
+            player.kickPlayer(kickMessage);
+
+            String adminNotify = plugin.getConfigManager().getAdminNotifyMessage()
+                    .replace("{player}", player.getName())
+                    .replace("{type}", reason);
+            
+            for (Player admin : Bukkit.getOnlinePlayers()) {
+                if (admin.hasPermission("ipchecker.notify")) {
+                    admin.sendMessage(adminNotify);
+                }
+            }
+
+            if (plugin.getConfigManager().isLogEnabled()) {
+                plugin.getLogger().warning("玩家 " + player.getName() + " (" + ip + ") 因 " + reason + " 被封禁");
+            }
+        }
+    }
+
+    public boolean unbanIP(String ip) {
+        return plugin.getYamlStorage().removeBan(ip);
+    }
+
+    public boolean isBanned(String ip) {
+        if (plugin.getYamlStorage().isBanned(ip)) {
+            return true;
+        }
+
+        for (String bannedIP : plugin.getYamlStorage().getBannedIPs()) {
+            if (isCIDR(bannedIP) && matchCIDR(ip, bannedIP)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    public boolean matchCIDR(String ip, String cidr) {
+        if (!isCIDR(cidr)) {
+            return ip.equals(cidr);
+        }
+
+        try {
+            String[] parts = cidr.split("/");
+            String cidrIP = parts[0];
+            int prefixLength = Integer.parseInt(parts[1]);
+
+            InetAddress targetAddr = InetAddress.getByName(ip);
+            InetAddress cidrAddr = InetAddress.getByName(cidrIP);
+
+            byte[] targetBytes = targetAddr.getAddress();
+            byte[] cidrBytes = cidrAddr.getAddress();
+
+            if (targetBytes.length != cidrBytes.length) {
+                return false;
+            }
+
+            int mask = -1 << (32 - prefixLength);
+            int targetInt = ((targetBytes[0] & 0xFF) << 24) |
+                            ((targetBytes[1] & 0xFF) << 16) |
+                            ((targetBytes[2] & 0xFF) << 8) |
+                            (targetBytes[3] & 0xFF);
+            int cidrInt = ((cidrBytes[0] & 0xFF) << 24) |
+                          ((cidrBytes[1] & 0xFF) << 16) |
+                          ((cidrBytes[2] & 0xFF) << 8) |
+                          (cidrBytes[3] & 0xFF);
+
+            return (targetInt & mask) == (cidrInt & mask);
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    public boolean isCIDR(String ip) {
+        return CIDR_PATTERN.matcher(ip).matches();
+    }
+
+    public boolean isValidIP(String ip) {
+        return IP_PATTERN.matcher(ip).matches() || isCIDR(ip);
+    }
+
+    public String extractIP(Player player) {
+        InetSocketAddress address = player.getAddress();
+        if (address == null) {
+            return null;
+        }
+        InetAddress inetAddress = address.getAddress();
+        if (inetAddress == null) {
+            return null;
+        }
+        return inetAddress.getHostAddress();
+    }
+
+    public boolean isDatacenterIP(String ip) {
+        if (ipDatabaseService.isDatacenterIP(ip)) {
+            return true;
+        }
+
+        for (String cidr : getBannedCIDRs(ipDatabaseService.getDatacenterIPs())) {
+            if (matchCIDR(ip, cidr)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    public boolean isVpnIP(String ip) {
+        if (ipDatabaseService.isVpnIP(ip)) {
+            return true;
+        }
+
+        for (String cidr : getBannedCIDRs(ipDatabaseService.getVpnIPs())) {
+            if (matchCIDR(ip, cidr)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private List<String> getBannedCIDRs(java.util.Set<String> ips) {
+        List<String> cidrs = new ArrayList<>();
+        for (String ip : ips) {
+            if (isCIDR(ip)) {
+                cidrs.add(ip);
+            }
+        }
+        return cidrs;
+    }
+
+    public List<String> getBannedIPs() {
+        return new ArrayList<>(plugin.getYamlStorage().getBannedIPs());
+    }
+
+    public List<String> getWhitelist() {
+        return plugin.getYamlStorage().getWhitelist();
+    }
+
+    public void addToWhitelist(String ip) {
+        plugin.getYamlStorage().addWhitelist(ip);
+    }
+
+    public boolean removeFromWhitelist(String ip) {
+        return plugin.getYamlStorage().removeWhitelist(ip);
+    }
+
+    public boolean isWhitelisted(String ip) {
+        return plugin.getYamlStorage().isWhitelisted(ip);
+    }
+}

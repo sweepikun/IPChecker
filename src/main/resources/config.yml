@@ -1,0 +1,21 @@
+# IPChecker 配置文件
+
+# 玩家进入服务器后延迟检查时间（秒）
+check-delay: 120
+
+# 自动更新设置
+auto-update:
+  # 是否启用自动更新
+  enabled: true
+  # 检查更新间隔（小时）
+  interval-hours: 24
+
+# 是否记录封禁日志
+log-enabled: true
+
+# 消息配置
+messages:
+  # 玩家被 kick 时显示的消息
+  kick: "&c检测到您的网络环境异常，请联系管理员"
+  # 管理员收到的通知消息 ({player} 会被替换为玩家名)
+  admin-notify: "&c[IPChecker] 玩家 {player} 使用 VPN/机房 IP 已被封禁"

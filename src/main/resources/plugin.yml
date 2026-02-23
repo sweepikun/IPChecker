@@ -1,0 +1,37 @@
+name: IPChecker
+version: ${version}
+main: cn.popcraft.ipchecker.IPChecker
+api-version: 1.16
+authors:
+  - PopCraft
+description: IP 检查插件，检测并封禁 VPN/机房 IP
+website: https://github.com/PopCraft/IPChecker
+
+commands:
+  ipchecker:
+    description: IPChecker 主命令
+    usage: /<command> <unban|info|reload|whitelist> [参数]
+    permission: ipchecker.admin
+  ipinfo:
+    description: 查看玩家 IP 信息
+    usage: /<command> <玩家>
+    permission: ipchecker.admin
+  ipreload:
+    description: 重载 IPChecker 配置
+    usage: /<command>
+    permission: ipchecker.admin
+  ipwhitelist:
+    description: 管理 IP 白名单
+    usage: /<command> <add|remove|list> [IP]
+    permission: ipchecker.admin
+
+permissions:
+  ipchecker.admin:
+    description: 访问 IPChecker 管理命令
+    default: op
+  ipchecker.notify:
+    description: 接收 VPN/机房 IP 封禁通知
+    default: op
+  ipchecker.bypass:
+    description: 绕过 IP 检查
+    default: false
