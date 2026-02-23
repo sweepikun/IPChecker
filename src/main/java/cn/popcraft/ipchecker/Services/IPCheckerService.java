@@ -23,8 +23,9 @@ public class IPCheckerService {
     public void scheduleCheck(Player player) {
         String playerName = player.getName();
         
-        if (pendingChecks.containsKey(playerName)) {
-            plugin.getServer().getScheduler().cancelTask(pendingChecks.get(playerName).intValue());
+        Long existingTaskId = pendingChecks.get(playerName);
+        if (existingTaskId != null) {
+            plugin.getServer().getScheduler().cancelTask(existingTaskId.intValue());
         }
 
         int delaySeconds = plugin.getConfigManager().getCheckDelay();

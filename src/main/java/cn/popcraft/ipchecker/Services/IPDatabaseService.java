@@ -8,6 +8,7 @@ import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.security.MessageDigest;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.Executors;
@@ -101,9 +102,10 @@ public class IPDatabaseService {
     }
 
     private void downloadFile(String urlString, File outputFile, String type) {
+        HttpURLConnection connection = null;
         try {
             URL url = new URL(urlString);
-            HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+            connection = (HttpURLConnection) url.openConnection();
             connection.setRequestMethod("GET");
             connection.setConnectTimeout(30000);
             connection.setReadTimeout(30000);
@@ -118,28 +120,35 @@ public class IPDatabaseService {
                 }
             }
             
-            connection.disconnect();
             plugin.getLogger().info(type + " IP 库下载完成：" + outputFile.getName());
         } catch (IOException e) {
             plugin.getLogger().severe("下载 " + type + " IP 库失败：" + e.getMessage());
+        } finally {
+            if (connection != null) {
+                connection.disconnect();
+            }
         }
     }
 
     private String getRemoteFileHash(String urlString) {
+        HttpURLConnection connection = null;
         try {
             URL url = new URL(urlString);
-            HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+            connection = (HttpURLConnection) url.openConnection();
             connection.setRequestMethod("HEAD");
             connection.setConnectTimeout(10000);
             
             long lastModified = connection.getLastModified();
-            connection.disconnect();
             
             if (lastModified > 0) {
                 return "lastmod_" + lastModified;
             }
         } catch (IOException e) {
             plugin.getLogger().warning("获取远程文件信息失败：" + e.getMessage());
+        } finally {
+            if (connection != null) {
+                connection.disconnect();
+            }
         }
         return null;
     }
@@ -193,11 +202,11 @@ public class IPDatabaseService {
     }
 
     public Set<String> getDatacenterIPs() {
-        return datacenterIPs;
+        return Collections.unmodifiableSet(new HashSet<>(datacenterIPs));
     }
 
     public Set<String> getVpnIPs() {
-        return vpnIPs;
+        return Collections.unmodifiableSet(new HashSet<>(vpnIPs));
     }
 
     public boolean isDatacenterIP(String ip) {

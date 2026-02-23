@@ -101,7 +101,7 @@ public class WhitelistCommand implements CommandExecutor, TabCompleter {
             completions.add("list");
         } else if (args.length == 2) {
             String action = args[0].toLowerCase();
-            if (action.equals("remove") || action.equals("add")) {
+            if (action.equals("remove")) {
                 completions.addAll(plugin.getBanService().getWhitelist());
             }
         }

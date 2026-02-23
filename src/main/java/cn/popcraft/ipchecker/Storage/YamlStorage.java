@@ -8,10 +8,12 @@ import org.bukkit.configuration.file.YamlConfiguration;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class YamlStorage {
 
@@ -19,8 +21,8 @@ public class YamlStorage {
     private final File bansFile;
     private FileConfiguration bansConfig;
 
-    private final Map<String, BanEntry> bannedIPs = new HashMap<>();
-    private final List<String> whitelistedIPs = new ArrayList<>();
+    private final Map<String, BanEntry> bannedIPs = new ConcurrentHashMap<>();
+    private final List<String> whitelistedIPs = Collections.synchronizedList(new ArrayList<>());
 
     public static class BanEntry {
         private final String ip;
@@ -123,7 +125,7 @@ public class YamlStorage {
     }
 
     public Set<String> getBannedIPs() {
-        return bannedIPs.keySet();
+        return Collections.unmodifiableSet(bannedIPs.keySet());
     }
 
     public Map<String, BanEntry> getAllBans() {

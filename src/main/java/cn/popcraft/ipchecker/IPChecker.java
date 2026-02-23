@@ -56,19 +56,23 @@ public class IPChecker extends JavaPlugin {
         if (yamlStorage != null) {
             yamlStorage.save();
         }
+        if (ipDatabaseService != null) {
+            ipDatabaseService.shutdown();
+        }
         getLogger().info("IPChecker has been disabled!");
     }
 
     private void registerCommands() {
-        getCommand("ipchecker").setExecutor(new UnbanCommand(this));
-        getCommand("ipchecker").setTabCompleter(new UnbanCommand(this));
-        
+        UnbanCommand unbanCommand = new UnbanCommand(this);
+        getCommand("ipchecker").setExecutor(unbanCommand);
+        getCommand("ipchecker").setTabCompleter(unbanCommand);
+
         InfoCommand infoCommand = new InfoCommand(this);
         getCommand("ipinfo").setExecutor(infoCommand);
         getCommand("ipinfo").setTabCompleter(infoCommand);
-        
+
         getCommand("ipreload").setExecutor(new ReloadCommand(this));
-        
+
         WhitelistCommand whitelistCommand = new WhitelistCommand(this);
         getCommand("ipwhitelist").setExecutor(whitelistCommand);
         getCommand("ipwhitelist").setTabCompleter(whitelistCommand);

@@ -95,15 +95,15 @@ public class BanService {
                 return false;
             }
 
-            int mask = -1 << (32 - prefixLength);
-            int targetInt = ((targetBytes[0] & 0xFF) << 24) |
-                            ((targetBytes[1] & 0xFF) << 16) |
-                            ((targetBytes[2] & 0xFF) << 8) |
-                            (targetBytes[3] & 0xFF);
-            int cidrInt = ((cidrBytes[0] & 0xFF) << 24) |
-                          ((cidrBytes[1] & 0xFF) << 16) |
-                          ((cidrBytes[2] & 0xFF) << 8) |
-                          (cidrBytes[3] & 0xFF);
+            long mask = 0xFFFFFFFFL << (32 - prefixLength);
+            long targetInt = ((targetBytes[0] & 0xFFL) << 24) |
+                             ((targetBytes[1] & 0xFFL) << 16) |
+                             ((targetBytes[2] & 0xFFL) << 8) |
+                             (targetBytes[3] & 0xFFL);
+            long cidrInt = ((cidrBytes[0] & 0xFFL) << 24) |
+                           ((cidrBytes[1] & 0xFFL) << 16) |
+                           ((cidrBytes[2] & 0xFFL) << 8) |
+                           (cidrBytes[3] & 0xFFL);
 
             return (targetInt & mask) == (cidrInt & mask);
         } catch (Exception e) {
@@ -116,16 +116,48 @@ public class BanService {
     }
 
     public boolean isValidIP(String ip) {
-        return IP_PATTERN.matcher(ip).matches() || isCIDR(ip);
+        if (isCIDR(ip)) {
+            String[] parts = ip.split("/");
+            if (!isValidIPv4(parts[0])) {
+                return false;
+            }
+            try {
+                int prefix = Integer.parseInt(parts[1]);
+                return prefix >= 0 && prefix <= 32;
+            } catch (NumberFormatException e) {
+                return false;
+            }
+        }
+        return isValidIPv4(ip);
+    }
+
+    private boolean isValidIPv4(String ip) {
+        if (!IP_PATTERN.matcher(ip).matches()) {
+            return false;
+        }
+        String[] octets = ip.split("\\.");
+        for (String octet : octets) {
+            try {
+                int value = Integer.parseInt(octet);
+                if (value < 0 || value > 255) {
+                    return false;
+                }
+            } catch (NumberFormatException e) {
+                return false;
+            }
+        }
+        return true;
     }
 
     public String extractIP(Player player) {
         InetSocketAddress address = player.getAddress();
         if (address == null) {
+            plugin.getLogger().warning("无法获取玩家 " + player.getName() + " 的地址 (address is null)");
             return null;
         }
         InetAddress inetAddress = address.getAddress();
         if (inetAddress == null) {
+            plugin.getLogger().warning("无法获取玩家 " + player.getName() + " 的 InetAddress");
             return null;
         }
         return inetAddress.getHostAddress();
