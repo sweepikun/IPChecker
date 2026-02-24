@@ -21,8 +21,8 @@ commands:
     usage: /<command>
     permission: ipchecker.admin
   ipwhitelist:
-    description: 管理 IP 白名单
-    usage: /<command> <add|remove|list> [IP]
+    description: 管理玩家白名单（跳过IP检查）
+    usage: /<command> <add|remove|list> [玩家]
     permission: ipchecker.admin
 
 permissions:
