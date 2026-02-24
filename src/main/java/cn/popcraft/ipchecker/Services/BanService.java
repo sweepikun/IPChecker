@@ -24,10 +24,6 @@ public class BanService {
     }
 
     public void checkAndBan(Player player, String ip, boolean isDatacenter, boolean isVpn) {
-        if (plugin.getYamlStorage().isWhitelisted(ip)) {
-            return;
-        }
-
         String reason = "";
         if (isDatacenter) {
             reason = "Datacenter IP";
