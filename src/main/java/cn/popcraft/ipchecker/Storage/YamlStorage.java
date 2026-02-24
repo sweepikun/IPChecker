@@ -22,7 +22,7 @@ public class YamlStorage {
     private FileConfiguration bansConfig;
 
     private final Map<String, BanEntry> bannedIPs = new ConcurrentHashMap<>();
-    private final List<String> whitelistedIPs = Collections.synchronizedList(new ArrayList<>());
+    private final List<String> whitelistedPlayers = Collections.synchronizedList(new ArrayList<>());
 
     public static class BanEntry {
         private final String ip;
@@ -74,13 +74,13 @@ public class YamlStorage {
             }
         }
 
-        whitelistedIPs.clear();
-        List<String> whitelist = bansConfig.getStringList("whitelisted");
+        whitelistedPlayers.clear();
+        List<String> whitelist = bansConfig.getStringList("whitelisted-players");
         if (whitelist != null) {
-            whitelistedIPs.addAll(whitelist);
+            whitelistedPlayers.addAll(whitelist);
         }
 
-        plugin.getLogger().info("已加载 " + bannedIPs.size() + " 个封禁 IP 和 " + whitelistedIPs.size() + " 个白名单 IP");
+        plugin.getLogger().info("已加载 " + bannedIPs.size() + " 个封禁 IP 和 " + whitelistedPlayers.size() + " 个白名单玩家");
     }
 
     public void save() {
@@ -94,7 +94,7 @@ public class YamlStorage {
             bansConfig.set("banned." + entry.getIp() + ".time", entry.getTimestamp());
         }
 
-        bansConfig.set("whitelisted", whitelistedIPs);
+        bansConfig.set("whitelisted-players", whitelistedPlayers);
 
         try {
             bansConfig.save(bansFile);
@@ -132,26 +132,28 @@ public class YamlStorage {
         return new HashMap<>(bannedIPs);
     }
 
-    public void addWhitelist(String ip) {
-        if (!whitelistedIPs.contains(ip)) {
-            whitelistedIPs.add(ip);
+    public void addWhitelistedPlayer(String playerName) {
+        String name = playerName.toLowerCase();
+        if (!whitelistedPlayers.contains(name)) {
+            whitelistedPlayers.add(name);
             save();
         }
     }
 
-    public boolean removeWhitelist(String ip) {
-        if (whitelistedIPs.remove(ip)) {
+    public boolean removeWhitelistedPlayer(String playerName) {
+        String name = playerName.toLowerCase();
+        if (whitelistedPlayers.remove(name)) {
             save();
             return true;
         }
         return false;
     }
 
-    public boolean isWhitelisted(String ip) {
-        return whitelistedIPs.contains(ip);
+    public boolean isPlayerWhitelisted(String playerName) {
+        return whitelistedPlayers.contains(playerName.toLowerCase());
     }
 
-    public List<String> getWhitelist() {
-        return new ArrayList<>(whitelistedIPs);
+    public List<String> getWhitelistedPlayers() {
+        return new ArrayList<>(whitelistedPlayers);
     }
 }

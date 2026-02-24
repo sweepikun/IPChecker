@@ -54,10 +54,6 @@ public class IPCheckerService {
             return;
         }
 
-        if (plugin.getYamlStorage().isWhitelisted(ip)) {
-            return;
-        }
-
         boolean isDatacenter = banService.isDatacenterIP(ip);
         boolean isVpn = banService.isVpnIP(ip);
 

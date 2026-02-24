@@ -206,18 +206,18 @@ public class BanService {
     }
 
     public List<String> getWhitelist() {
-        return plugin.getYamlStorage().getWhitelist();
+        return plugin.getYamlStorage().getWhitelistedPlayers();
     }
 
-    public void addToWhitelist(String ip) {
-        plugin.getYamlStorage().addWhitelist(ip);
+    public void addToWhitelist(String playerName) {
+        plugin.getYamlStorage().addWhitelistedPlayer(playerName);
     }
 
-    public boolean removeFromWhitelist(String ip) {
-        return plugin.getYamlStorage().removeWhitelist(ip);
+    public boolean removeFromWhitelist(String playerName) {
+        return plugin.getYamlStorage().removeWhitelistedPlayer(playerName);
     }
 
-    public boolean isWhitelisted(String ip) {
-        return plugin.getYamlStorage().isWhitelisted(ip);
+    public boolean isWhitelisted(String playerName) {
+        return plugin.getYamlStorage().isPlayerWhitelisted(playerName);
     }
 }
