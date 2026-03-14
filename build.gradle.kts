@@ -32,16 +32,14 @@ tasks {
     }
     
     shadowJar {
-        archiveClassifier.set("")
+        archiveClassifier.set("all")
+        archiveBaseName.set("IPChecker")
         relocate("org.sqlite", "cn.popcraft.ipchecker.libs.sqlite")
         relocate("org.slf4j", "cn.popcraft.ipchecker.libs.slf4j")
+        mergeServiceFiles()
     }
 
-    jar {
-        archiveBaseName.set("IPChecker")
+    build {
+        dependsOn(shadowJar)
     }
-}
-
-tasks.named("build") {
-    dependsOn("shadowJar")
 }
