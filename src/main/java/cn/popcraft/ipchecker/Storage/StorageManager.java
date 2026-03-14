@@ -2,6 +2,7 @@ package cn.popcraft.ipchecker.Storage;
 
 import cn.popcraft.ipchecker.IPChecker;
 
+import java.util.ArrayList;
 import java.util.List;
 
 public class StorageManager {
@@ -82,7 +83,7 @@ public class StorageManager {
         if (useSqlite) {
             return sqliteStorage.getBannedIPs();
         } else {
-            return yamlStorage.getBannedIPs();
+            return new ArrayList<>(yamlStorage.getBannedIPs());
         }
     }
 
