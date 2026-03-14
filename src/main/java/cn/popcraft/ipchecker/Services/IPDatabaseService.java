@@ -7,18 +7,15 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
-import java.security.MessageDigest;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 public class IPDatabaseService {
-
-    private static final String DATACENTER_URL = "https://cdn.jsdmirror.cn/gh/X4BNet/lists_vpn@main/output/datacenter/ipv4.txt";
-    private static final String VPN_URL = "https://cdn.jsdmirror.cn/gh/X4BNet/lists_vpn@main/output/vpn/ipv4.txt";
 
     private final IPChecker plugin;
     private final File ipFolder;
@@ -29,7 +26,11 @@ public class IPDatabaseService {
     private final Set<String> datacenterIPs = new HashSet<>();
     private final Set<String> vpnIPs = new HashSet<>();
 
+    private final CIDRTree datacenterTree = new CIDRTree();
+    private final CIDRTree vpnTree = new CIDRTree();
+
     private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
+    private volatile boolean initialLoadDone = false;
 
     public IPDatabaseService(IPChecker plugin, File ipFolder) {
         this.plugin = plugin;
@@ -40,68 +41,75 @@ public class IPDatabaseService {
     }
 
     public void load() {
-        downloadIfNeeded();
-        
+        if (datacenterFile.exists() && vpnFile.exists()) {
+            loadIPsFromFile(datacenterFile, datacenterIPs, "机房 IP");
+            loadIPsFromFile(vpnFile, vpnIPs, "VPN IP");
+            rebuildTrees();
+            initialLoadDone = true;
+            plugin.getLogger().info("IP 库加载完成：机房 IP " + datacenterIPs.size() + " 条，VPN IP " + vpnIPs.size() + " 条");
+        } else {
+            plugin.getLogger().info("IP 库文件不存在，将在后台下载...");
+        }
+
+        plugin.getServer().getScheduler().runTaskAsynchronously(plugin, () -> {
+            downloadFromSources();
+            plugin.getServer().getScheduler().runTask(plugin, () -> {
+                loadIPsFromFile(datacenterFile, datacenterIPs, "机房 IP");
+                loadIPsFromFile(vpnFile, vpnIPs, "VPN IP");
+                rebuildTrees();
+                initialLoadDone = true;
+                plugin.getLogger().info("后台 IP 库下载完成：机房 IP " + datacenterIPs.size() + " 条，VPN IP " + vpnIPs.size() + " 条");
+            });
+        });
+
         int interval = plugin.getConfigManager().getAutoUpdateInterval();
         if (plugin.getConfigManager().isAutoUpdateEnabled()) {
             scheduler.scheduleWithFixedDelay(this::checkAndUpdate, interval, interval, TimeUnit.HOURS);
             plugin.getLogger().info("已启动 IP 库自动更新，每 " + interval + " 小时检查一次");
         }
-        
-        loadIPsFromFile(datacenterFile, datacenterIPs, "机房 IP");
-        loadIPsFromFile(vpnFile, vpnIPs, "VPN IP");
-        
-        plugin.getLogger().info("IP 库加载完成：机房 IP " + datacenterIPs.size() + " 条，VPN IP " + vpnIPs.size() + " 条");
     }
 
-    private void downloadIfNeeded() {
-        if (!datacenterFile.exists() || !vpnFile.exists()) {
-            plugin.getLogger().info("IP 库文件不存在，开始下载...");
-            downloadFile(DATACENTER_URL, datacenterFile, "datacenter");
-            downloadFile(VPN_URL, vpnFile, "vpn");
-            saveHashes();
-        } else {
-            String localDatacenterHash = calculateHash(datacenterFile);
-            String localVpnHash = calculateHash(vpnFile);
-            String savedHashes = loadHashes();
-            
-            if (savedHashes != null) {
-                String[] parts = savedHashes.split("\\|");
-                if (parts.length == 2) {
-                    if (!localDatacenterHash.equals(parts[0]) || !localVpnHash.equals(parts[1])) {
-                        plugin.getLogger().info("检测到 IP 库可能已更新，重新下载...");
-                        downloadFile(DATACENTER_URL, datacenterFile, "datacenter");
-                        downloadFile(VPN_URL, vpnFile, "vpn");
-                        saveHashes();
-                    }
+    private void downloadFromSources() {
+        List<String> datacenterUrls = plugin.getConfigManager().getIPDatabaseURLs("datacenter");
+        List<String> vpnUrls = plugin.getConfigManager().getIPDatabaseURLs("vpn");
+
+        if (!datacenterFile.exists()) {
+            for (String url : datacenterUrls) {
+                if (downloadFile(url, datacenterFile, "datacenter")) {
+                    saveHashes();
+                    break;
+                }
+            }
+        }
+
+        if (!vpnFile.exists()) {
+            for (String url : vpnUrls) {
+                if (downloadFile(url, vpnFile, "vpn")) {
+                    saveHashes();
+                    break;
                 }
             }
         }
     }
 
+    private void rebuildTrees() {
+        datacenterTree.clear();
+        datacenterTree.addAll(datacenterIPs);
+        vpnTree.clear();
+        vpnTree.addAll(vpnIPs);
+    }
+
     private void checkAndUpdate() {
         plugin.getLogger().info("正在检查 IP 库更新...");
-        
-        String remoteDatacenterHash = getRemoteFileHash(DATACENTER_URL);
-        String remoteVpnHash = getRemoteFileHash(VPN_URL);
-        
-        if (remoteDatacenterHash != null && !remoteDatacenterHash.equals(calculateHash(datacenterFile))) {
-            plugin.getLogger().info("机房 IP 库有更新，正在下载...");
-            downloadFile(DATACENTER_URL, datacenterFile, "datacenter");
-            loadIPsFromFile(datacenterFile, datacenterIPs, "机房 IP");
-        }
-        
-        if (remoteVpnHash != null && !remoteVpnHash.equals(calculateHash(vpnFile))) {
-            plugin.getLogger().info("VPN IP 库有更新，正在下载...");
-            downloadFile(VPN_URL, vpnFile, "vpn");
-            loadIPsFromFile(vpnFile, vpnIPs, "VPN IP");
-        }
-        
+        downloadFromSources();
+        loadIPsFromFile(datacenterFile, datacenterIPs, "机房 IP");
+        loadIPsFromFile(vpnFile, vpnIPs, "VPN IP");
+        rebuildTrees();
         saveHashes();
         plugin.getLogger().info("IP 库更新检查完成");
     }
 
-    private void downloadFile(String urlString, File outputFile, String type) {
+    private boolean downloadFile(String urlString, File outputFile, String type) {
         HttpURLConnection connection = null;
         try {
             URL url = new URL(urlString);
@@ -121,36 +129,15 @@ public class IPDatabaseService {
             }
             
             plugin.getLogger().info(type + " IP 库下载完成：" + outputFile.getName());
+            return true;
         } catch (IOException e) {
-            plugin.getLogger().severe("下载 " + type + " IP 库失败：" + e.getMessage());
+            plugin.getLogger().warning("下载 " + type + " IP 库失败 (" + urlString + ")：" + e.getMessage());
+            return false;
         } finally {
             if (connection != null) {
                 connection.disconnect();
             }
         }
-    }
-
-    private String getRemoteFileHash(String urlString) {
-        HttpURLConnection connection = null;
-        try {
-            URL url = new URL(urlString);
-            connection = (HttpURLConnection) url.openConnection();
-            connection.setRequestMethod("HEAD");
-            connection.setConnectTimeout(10000);
-            
-            long lastModified = connection.getLastModified();
-            
-            if (lastModified > 0) {
-                return "lastmod_" + lastModified;
-            }
-        } catch (IOException e) {
-            plugin.getLogger().warning("获取远程文件信息失败：" + e.getMessage());
-        } finally {
-            if (connection != null) {
-                connection.disconnect();
-            }
-        }
-        return null;
     }
 
     private String calculateHash(File file) {
@@ -171,17 +158,6 @@ public class IPDatabaseService {
         } catch (IOException e) {
             plugin.getLogger().warning("保存哈希值失败：" + e.getMessage());
         }
-    }
-
-    private String loadHashes() {
-        try {
-            if (hashFile.exists()) {
-                return Files.readString(hashFile.toPath(), StandardCharsets.UTF_8);
-            }
-        } catch (IOException e) {
-            plugin.getLogger().warning("加载哈希值失败：" + e.getMessage());
-        }
-        return null;
     }
 
     private void loadIPsFromFile(File file, Set<String> targetSet, String type) {
@@ -210,11 +186,15 @@ public class IPDatabaseService {
     }
 
     public boolean isDatacenterIP(String ip) {
-        return datacenterIPs.contains(ip);
+        return initialLoadDone && datacenterTree.contains(ip);
     }
 
     public boolean isVpnIP(String ip) {
-        return vpnIPs.contains(ip);
+        return initialLoadDone && vpnTree.contains(ip);
+    }
+
+    public boolean isInitialLoadDone() {
+        return initialLoadDone;
     }
 
     public void shutdown() {

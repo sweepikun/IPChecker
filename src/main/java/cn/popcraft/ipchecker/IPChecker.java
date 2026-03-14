@@ -6,9 +6,10 @@ import cn.popcraft.ipchecker.Commands.UnbanCommand;
 import cn.popcraft.ipchecker.Commands.WhitelistCommand;
 import cn.popcraft.ipchecker.Listeners.PlayerJoinListener;
 import cn.popcraft.ipchecker.Services.BanService;
+import cn.popcraft.ipchecker.Services.GeoIPService;
 import cn.popcraft.ipchecker.Services.IPCheckerService;
 import cn.popcraft.ipchecker.Services.IPDatabaseService;
-import cn.popcraft.ipchecker.Storage.YamlStorage;
+import cn.popcraft.ipchecker.Storage.StorageManager;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.io.File;
@@ -17,10 +18,12 @@ public class IPChecker extends JavaPlugin {
 
     private static IPChecker instance;
     private ConfigManager configManager;
-    private YamlStorage yamlStorage;
+    private StorageManager storageManager;
     private BanService banService;
     private IPDatabaseService ipDatabaseService;
     private IPCheckerService ipCheckerService;
+    private GeoIPService geoIPService;
+    private ConfigWatcher configWatcher;
 
     @Override
     public void onEnable() {
@@ -34,27 +37,37 @@ public class IPChecker extends JavaPlugin {
             dataFolder.mkdirs();
         }
         
-        yamlStorage = new YamlStorage(this);
-        yamlStorage.load();
+        storageManager = new StorageManager(this);
+        storageManager.load();
 
         ipDatabaseService = new IPDatabaseService(this, dataFolder);
         ipDatabaseService.load();
 
         banService = new BanService(this, ipDatabaseService);
+        geoIPService = new GeoIPService(this);
         
-        ipCheckerService = new IPCheckerService(this, ipDatabaseService, banService);
+        ipCheckerService = new IPCheckerService(this, ipDatabaseService, banService, geoIPService);
         
         getServer().getPluginManager().registerEvents(new PlayerJoinListener(this), this);
         
         registerCommands();
+        
+        if (configManager.isConfigHotReload()) {
+            configWatcher = new ConfigWatcher(this);
+            configWatcher.start();
+            getLogger().info("配置热重载已启用");
+        }
         
         getLogger().info("IPChecker has been enabled!");
     }
 
     @Override
     public void onDisable() {
-        if (yamlStorage != null) {
-            yamlStorage.save();
+        if (configWatcher != null) {
+            configWatcher.stop();
+        }
+        if (storageManager != null) {
+            storageManager.close();
         }
         if (ipDatabaseService != null) {
             ipDatabaseService.shutdown();
@@ -86,8 +99,8 @@ public class IPChecker extends JavaPlugin {
         return configManager;
     }
 
-    public YamlStorage getYamlStorage() {
-        return yamlStorage;
+    public StorageManager getStorageManager() {
+        return storageManager;
     }
 
     public BanService getBanService() {

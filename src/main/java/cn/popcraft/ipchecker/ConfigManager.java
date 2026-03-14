@@ -2,6 +2,9 @@ package cn.popcraft.ipchecker;
 
 import org.bukkit.configuration.file.FileConfiguration;
 
+import java.util.ArrayList;
+import java.util.List;
+
 public class ConfigManager {
 
     private final IPChecker plugin;
@@ -40,6 +43,38 @@ public class ConfigManager {
 
     public boolean isLogEnabled() {
         return getConfig().getBoolean("log-enabled", true);
+    }
+
+    public boolean isSqliteEnabled() {
+        return getConfig().getBoolean("storage.use-sqlite", false);
+    }
+
+    public long getBanExpireHours() {
+        return getConfig().getLong("ban-expire-hours", 0);
+    }
+
+    public boolean isShowGeoIP() {
+        return getConfig().getBoolean("show-geoip", true);
+    }
+
+    public boolean isConfigHotReload() {
+        return getConfig().getBoolean("config-hot-reload", true);
+    }
+
+    public int getPlayerCacheMinutes() {
+        return getConfig().getInt("player-cache-minutes", 60);
+    }
+
+    public List<String> getIPDatabaseURLs(String type) {
+        List<String> urls = getConfig().getStringList("ip-databases." + type);
+        if (urls.isEmpty()) {
+            if ("datacenter".equals(type)) {
+                urls.add("https://cdn.jsdmirror.cn/gh/X4BNet/lists_vpn@main/output/datacenter/ipv4.txt");
+            } else if ("vpn".equals(type)) {
+                urls.add("https://cdn.jsdmirror.cn/gh/X4BNet/lists_vpn@main/output/vpn/ipv4.txt");
+            }
+        }
+        return urls;
     }
 
     private String colorize(String message) {

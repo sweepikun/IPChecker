@@ -22,7 +22,6 @@ public class ReloadCommand implements CommandExecutor {
         }
 
         plugin.getConfigManager().reload();
-        plugin.getYamlStorage().load();
         sender.sendMessage(ChatColor.GREEN + "配置已重载");
         return true;
     }

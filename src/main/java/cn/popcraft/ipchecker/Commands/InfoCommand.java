@@ -1,6 +1,7 @@
 package cn.popcraft.ipchecker.Commands;
 
 import cn.popcraft.ipchecker.IPChecker;
+import cn.popcraft.ipchecker.Services.GeoIPService;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.command.Command;
@@ -49,9 +50,28 @@ public class InfoCommand implements CommandExecutor, TabCompleter {
         sender.sendMessage(ChatColor.YELLOW + "玩家：" + ChatColor.WHITE + player.getName());
         sender.sendMessage(ChatColor.YELLOW + "IP: " + ChatColor.WHITE + ip);
         sender.sendMessage(ChatColor.YELLOW + "封禁状态：" + (plugin.getBanService().isBanned(ip) ? ChatColor.RED + "已封禁" : ChatColor.GREEN + "正常"));
-        sender.sendMessage(ChatColor.YELLOW + "白名单状态：" + (plugin.getBanService().isWhitelisted(ip) ? ChatColor.GREEN + "是" : ChatColor.RED + "否"));
+        sender.sendMessage(ChatColor.YELLOW + "白名单状态：" + (plugin.getStorageManager().isPlayerWhitelisted(player.getName()) ? ChatColor.GREEN + "是" : ChatColor.RED + "否"));
         sender.sendMessage(ChatColor.YELLOW + "机房 IP: " + (plugin.getBanService().isDatacenterIP(ip) ? ChatColor.RED + "是" : ChatColor.GREEN + "否"));
         sender.sendMessage(ChatColor.YELLOW + "VPN IP: " + (plugin.getBanService().isVpnIP(ip) ? ChatColor.RED + "是" : ChatColor.GREEN + "否"));
+
+        if (plugin.getConfigManager().isShowGeoIP()) {
+            GeoIPService.GeoIPResult geoResult = plugin.getIPCheckerService().getGeoIPService().lookup(ip);
+            if (geoResult != null) {
+                sender.sendMessage(ChatColor.YELLOW + "地理位置：" + ChatColor.WHITE + geoResult.getCountry() + ", " + geoResult.getCity());
+                sender.sendMessage(ChatColor.YELLOW + "ISP: " + ChatColor.WHITE + geoResult.getIsp());
+                sender.sendMessage(ChatColor.YELLOW + "代理/VPN: " + (geoResult.isProxy() ? ChatColor.RED + "是" : ChatColor.GREEN + "否"));
+            }
+        }
+
+        if (plugin.getConfigManager().isSqliteEnabled()) {
+            List<String> ipHistory = plugin.getStorageManager().getPlayerIPHistory(player.getName());
+            if (!ipHistory.isEmpty()) {
+                sender.sendMessage(ChatColor.YELLOW + "IP 历史记录：");
+                for (String historyIP : ipHistory) {
+                    sender.sendMessage(ChatColor.GRAY + "  " + historyIP);
+                }
+            }
+        }
 
         return true;
     }

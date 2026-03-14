@@ -1,6 +1,7 @@
 package cn.popcraft.ipchecker.Commands;
 
 import cn.popcraft.ipchecker.IPChecker;
+import cn.popcraft.ipchecker.Services.GeoIPService;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.command.Command;
@@ -11,7 +12,6 @@ import org.bukkit.entity.Player;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Set;
 import java.util.stream.Collectors;
 
 public class UnbanCommand implements CommandExecutor, TabCompleter {
@@ -30,11 +30,12 @@ public class UnbanCommand implements CommandExecutor, TabCompleter {
         }
 
         if (args.length < 1) {
-            sender.sendMessage(ChatColor.YELLOW + "用法：/ipchecker <unban|info|reload|whitelist> [参数]");
+            sender.sendMessage(ChatColor.YELLOW + "用法：/ipchecker <unban|info|reload|whitelist|stats> [参数]");
             sender.sendMessage(ChatColor.YELLOW + "  unban <IP> - 解封指定 IP");
             sender.sendMessage(ChatColor.YELLOW + "  info <玩家> - 查看玩家 IP 信息");
             sender.sendMessage(ChatColor.YELLOW + "  reload - 重载配置");
-            sender.sendMessage(ChatColor.YELLOW + "  whitelist <add|remove> <IP> - 管理白名单");
+            sender.sendMessage(ChatColor.YELLOW + "  whitelist <add|remove|list> <玩家> - 管理白名单");
+            sender.sendMessage(ChatColor.YELLOW + "  stats - 查看统计信息");
             return true;
         }
 
@@ -49,6 +50,8 @@ public class UnbanCommand implements CommandExecutor, TabCompleter {
                 return handleReload(sender);
             case "whitelist":
                 return handleWhitelist(sender, args);
+            case "stats":
+                return handleStats(sender);
             default:
                 sender.sendMessage(ChatColor.RED + "未知的子命令：" + subCommand);
                 return true;
@@ -98,49 +101,85 @@ public class UnbanCommand implements CommandExecutor, TabCompleter {
         sender.sendMessage(ChatColor.YELLOW + "玩家：" + ChatColor.WHITE + player.getName());
         sender.sendMessage(ChatColor.YELLOW + "IP: " + ChatColor.WHITE + ip);
         sender.sendMessage(ChatColor.YELLOW + "封禁状态：" + (plugin.getBanService().isBanned(ip) ? ChatColor.RED + "已封禁" : ChatColor.GREEN + "正常"));
-        sender.sendMessage(ChatColor.YELLOW + "白名单状态：" + (plugin.getBanService().isWhitelisted(ip) ? ChatColor.GREEN + "是" : ChatColor.RED + "否"));
+        sender.sendMessage(ChatColor.YELLOW + "白名单状态：" + (plugin.getStorageManager().isPlayerWhitelisted(player.getName()) ? ChatColor.GREEN + "是" : ChatColor.RED + "否"));
         sender.sendMessage(ChatColor.YELLOW + "机房 IP: " + (plugin.getBanService().isDatacenterIP(ip) ? ChatColor.RED + "是" : ChatColor.GREEN + "否"));
         sender.sendMessage(ChatColor.YELLOW + "VPN IP: " + (plugin.getBanService().isVpnIP(ip) ? ChatColor.RED + "是" : ChatColor.GREEN + "否"));
+
+        if (plugin.getConfigManager().isShowGeoIP()) {
+            GeoIPService.GeoIPResult geoResult = plugin.getIPCheckerService().getGeoIPService().lookup(ip);
+            if (geoResult != null) {
+                sender.sendMessage(ChatColor.YELLOW + "地理位置：" + ChatColor.WHITE + geoResult.getCountry() + ", " + geoResult.getCity());
+                sender.sendMessage(ChatColor.YELLOW + "ISP: " + ChatColor.WHITE + geoResult.getIsp());
+            }
+        }
 
         return true;
     }
 
     private boolean handleReload(CommandSender sender) {
         plugin.getConfigManager().reload();
-        plugin.getYamlStorage().load();
         sender.sendMessage(ChatColor.GREEN + "配置已重载");
         return true;
     }
 
     private boolean handleWhitelist(CommandSender sender, String[] args) {
-        if (args.length < 3) {
-            sender.sendMessage(ChatColor.RED + "用法：/ipchecker whitelist <add|remove> <IP>");
+        if (args.length < 2) {
+            sender.sendMessage(ChatColor.RED + "用法：/ipchecker whitelist <add|remove|list> [玩家]");
             return true;
         }
 
         String action = args[1].toLowerCase();
-        String ip = args[2];
-
-        if (!plugin.getBanService().isValidIP(ip)) {
-            sender.sendMessage(ChatColor.RED + "无效的 IP 地址格式");
-            return true;
-        }
 
         switch (action) {
             case "add":
-                plugin.getBanService().addToWhitelist(ip);
-                sender.sendMessage(ChatColor.GREEN + "已将 " + ip + " 添加到白名单");
+                if (args.length < 3) {
+                    sender.sendMessage(ChatColor.RED + "用法：/ipchecker whitelist add <玩家>");
+                    return true;
+                }
+                plugin.getStorageManager().addWhitelistedPlayer(args[2]);
+                sender.sendMessage(ChatColor.GREEN + "已将 " + args[2] + " 添加到白名单");
                 break;
             case "remove":
-                if (plugin.getBanService().removeFromWhitelist(ip)) {
-                    sender.sendMessage(ChatColor.GREEN + "已从白名单移除 " + ip);
+                if (args.length < 3) {
+                    sender.sendMessage(ChatColor.RED + "用法：/ipchecker whitelist remove <玩家>");
+                    return true;
+                }
+                if (plugin.getStorageManager().removeWhitelistedPlayer(args[2])) {
+                    sender.sendMessage(ChatColor.GREEN + "已从白名单移除 " + args[2]);
                 } else {
-                    sender.sendMessage(ChatColor.RED + "该 IP 不在白名单中");
+                    sender.sendMessage(ChatColor.RED + "该玩家不在白名单中");
+                }
+                break;
+            case "list":
+                List<String> whitelist = plugin.getStorageManager().getWhitelistedPlayers();
+                sender.sendMessage(ChatColor.YELLOW + "=== IP 检查白名单 ===");
+                if (whitelist.isEmpty()) {
+                    sender.sendMessage(ChatColor.GRAY + "白名单为空");
+                } else {
+                    for (String player : whitelist) {
+                        sender.sendMessage(ChatColor.WHITE + "  " + player);
+                    }
                 }
                 break;
             default:
                 sender.sendMessage(ChatColor.RED + "未知操作：" + action);
                 return true;
+        }
+
+        return true;
+    }
+
+    private boolean handleStats(CommandSender sender) {
+        sender.sendMessage(ChatColor.YELLOW + "=== IPChecker 统计信息 ===");
+        sender.sendMessage(ChatColor.YELLOW + "存储方式：" + ChatColor.WHITE + (plugin.getConfigManager().isSqliteEnabled() ? "SQLite" : "YAML"));
+        sender.sendMessage(ChatColor.YELLOW + "封禁 IP 数量：" + ChatColor.RED + plugin.getStorageManager().getBannedIPs().size());
+        sender.sendMessage(ChatColor.YELLOW + "白名单玩家数量：" + ChatColor.GREEN + plugin.getStorageManager().getWhitelistedPlayers().size());
+        sender.sendMessage(ChatColor.YELLOW + "机房 IP 库：" + ChatColor.WHITE + plugin.getIPDatabaseService().getDatacenterIPs().size() + " 条");
+        sender.sendMessage(ChatColor.YELLOW + "VPN IP 库：" + ChatColor.WHITE + plugin.getIPDatabaseService().getVpnIPs().size() + " 条");
+
+        if (plugin.getConfigManager().isSqliteEnabled()) {
+            sender.sendMessage(ChatColor.YELLOW + "总封禁次数：" + ChatColor.WHITE + plugin.getStorageManager().getStat("total_bans"));
+            sender.sendMessage(ChatColor.YELLOW + "总检查次数：" + ChatColor.WHITE + plugin.getStorageManager().getStat("total_checks"));
         }
 
         return true;
@@ -155,6 +194,7 @@ public class UnbanCommand implements CommandExecutor, TabCompleter {
             completions.add("info");
             completions.add("reload");
             completions.add("whitelist");
+            completions.add("stats");
         } else if (args.length == 2) {
             String subCommand = args[0].toLowerCase();
             if (subCommand.equals("unban")) {
@@ -166,9 +206,13 @@ public class UnbanCommand implements CommandExecutor, TabCompleter {
             } else if (subCommand.equals("whitelist")) {
                 completions.add("add");
                 completions.add("remove");
+                completions.add("list");
             }
         } else if (args.length == 3 && args[0].equalsIgnoreCase("whitelist")) {
-            completions.addAll(plugin.getBanService().getWhitelist());
+            String action = args[1].toLowerCase();
+            if (action.equals("remove")) {
+                completions.addAll(plugin.getStorageManager().getWhitelistedPlayers());
+            }
         }
 
         String prefix = args[args.length - 1].toLowerCase();

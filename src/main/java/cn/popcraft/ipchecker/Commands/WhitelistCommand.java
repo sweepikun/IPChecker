@@ -57,7 +57,7 @@ public class WhitelistCommand implements CommandExecutor, TabCompleter {
         }
 
         String playerName = args[1];
-        plugin.getYamlStorage().addWhitelistedPlayer(playerName);
+        plugin.getStorageManager().addWhitelistedPlayer(playerName);
         sender.sendMessage(ChatColor.GREEN + "已将玩家 " + playerName + " 添加到白名单（该玩家将跳过IP检查）");
         return true;
     }
@@ -69,7 +69,7 @@ public class WhitelistCommand implements CommandExecutor, TabCompleter {
         }
 
         String playerName = args[1];
-        if (plugin.getYamlStorage().removeWhitelistedPlayer(playerName)) {
+        if (plugin.getStorageManager().removeWhitelistedPlayer(playerName)) {
             sender.sendMessage(ChatColor.GREEN + "已从白名单移除玩家 " + playerName);
         } else {
             sender.sendMessage(ChatColor.RED + "该玩家不在白名单中");
@@ -78,7 +78,7 @@ public class WhitelistCommand implements CommandExecutor, TabCompleter {
     }
 
     private boolean handleList(CommandSender sender) {
-        List<String> whitelist = plugin.getYamlStorage().getWhitelistedPlayers();
+        List<String> whitelist = plugin.getStorageManager().getWhitelistedPlayers();
         sender.sendMessage(ChatColor.YELLOW + "=== IP 检查白名单 ===");
         if (whitelist.isEmpty()) {
             sender.sendMessage(ChatColor.GRAY + "白名单为空");

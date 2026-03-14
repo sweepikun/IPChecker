@@ -10,6 +10,30 @@ auto-update:
   # 检查更新间隔（小时）
   interval-hours: 24
 
+# 存储设置
+storage:
+  # 使用 SQLite 存储（true）或 YAML 文件（false）
+  use-sqlite: false
+
+# 封禁过期时间（小时），0 表示永久封禁
+ban-expire-hours: 0
+
+# 是否显示 GeoIP 地理位置信息
+show-geoip: true
+
+# 是否启用配置热重载（检测 config.yml 修改自动重载）
+config-hot-reload: true
+
+# 玩家检查结果缓存时间（分钟），同一玩家在此时间内不会重复检查
+player-cache-minutes: 60
+
+# IP 库来源配置（支持多个 URL，按顺序尝试）
+ip-databases:
+  datacenter:
+    - "https://cdn.jsdmirror.cn/gh/X4BNet/lists_vpn@main/output/datacenter/ipv4.txt"
+  vpn:
+    - "https://cdn.jsdmirror.cn/gh/X4BNet/lists_vpn@main/output/vpn/ipv4.txt"
+
 # 是否记录封禁日志
 log-enabled: true
 

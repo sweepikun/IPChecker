@@ -10,7 +10,7 @@ website: https://github.com/PopCraft/IPChecker
 commands:
   ipchecker:
     description: IPChecker 主命令
-    usage: /<command> <unban|info|reload|whitelist> [参数]
+    usage: /<command> <unban|info|reload|whitelist|stats> [参数]
     permission: ipchecker.admin
   ipinfo:
     description: 查看玩家 IP 信息

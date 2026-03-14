@@ -24,7 +24,7 @@ public class PlayerJoinListener implements Listener {
             return;
         }
 
-        if (plugin.getYamlStorage().isPlayerWhitelisted(player.getName())) {
+        if (plugin.getStorageManager().isPlayerWhitelisted(player.getName())) {
             return;
         }
 
