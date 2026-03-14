@@ -1,6 +1,5 @@
 plugins {
     java
-    id("com.github.johnrengelman.shadow") version "8.1.1"
 }
 
 group = "cn.popcraft"
@@ -19,7 +18,6 @@ repositories {
 
 dependencies {
     compileOnly("org.spigotmc:spigot-api:1.16.5-R0.1-SNAPSHOT")
-    implementation("org.xerial:sqlite-jdbc:3.45.1.0")
 }
 
 tasks {
@@ -31,15 +29,7 @@ tasks {
         }
     }
     
-    shadowJar {
-        archiveClassifier.set("all")
+    jar {
         archiveBaseName.set("IPChecker")
-        relocate("org.sqlite", "cn.popcraft.ipchecker.libs.sqlite")
-        relocate("org.slf4j", "cn.popcraft.ipchecker.libs.slf4j")
-        mergeServiceFiles()
-    }
-
-    build {
-        dependsOn(shadowJar)
     }
 }

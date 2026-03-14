@@ -64,7 +64,6 @@ public class SqliteStorage {
 
     public void load() {
         try {
-            Class.forName("org.sqlite.JDBC");
             connection = DriverManager.getConnection("jdbc:sqlite:" + dbFile.getAbsolutePath());
             createTables();
             loadBans();
@@ -72,7 +71,7 @@ public class SqliteStorage {
             cleanupExpiredBans();
             plugin.getLogger().info("SQLite 存储加载完成：" + banCache.size() + " 个封禁，" + whitelistCache.size() + " 个白名单玩家");
         } catch (Exception e) {
-            plugin.getLogger().severe("无法初始化 SQLite 数据库：" + e.getMessage());
+            plugin.getLogger().severe("无法初始化 SQLite 数据库，请确保服务器支持 SQLite: " + e.getMessage());
         }
     }
 
@@ -135,7 +134,6 @@ public class SqliteStorage {
     }
 
     public void save() {
-        // SQLite is already persisted, nothing to do
     }
 
     public void close() {
@@ -270,7 +268,6 @@ public class SqliteStorage {
             ps.setString(1, key);
             ps.executeUpdate();
         } catch (SQLException e) {
-            // ignore
         }
     }
 
@@ -283,7 +280,6 @@ public class SqliteStorage {
                 }
             }
         } catch (SQLException e) {
-            // ignore
         }
         return 0;
     }
